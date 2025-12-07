@@ -13,6 +13,9 @@ const EXAMPLE_MAIN_URL = window.location.origin;
 export const Home = () => {
   const [pageLoading, setPageLoading] = useState(false);
   const [productList, setProductList] = useState([]);
+  const [tryOnImageUrl, setTryOnImageUrl] = useState("");
+  const [tryOnResult, setTryOnResult] = useState(null);
+  const [generating, setGenerating] = useState(false);
   const DOC_URL_PATH = "/help/docs/sdk/latest/platform/company/catalog/#getProducts";
   const DOC_APP_URL_PATH = "/help/docs/sdk/latest/platform/application/catalog#getAppProducts";
   const { application_id, company_id } = useParams();
@@ -71,6 +74,26 @@ export const Home = () => {
 
   const isApplicationLaunch = () => !!application_id;
 
+  const handleTryOn = async () => {
+    if (!tryOnImageUrl) return;
+    setGenerating(true);
+    setTryOnResult(null);
+    try {
+      const { data } = await axios.post(urlJoin(EXAMPLE_MAIN_URL, '/api/try-on'), {
+        imageUrl: tryOnImageUrl
+      });
+      if (data.success && data.output && data.output.length > 0) {
+        setTryOnResult(data.output[0]);
+      }
+    } catch (e) {
+      console.error("Error generating try-on:", e);
+      const errorMessage = e.response?.data?.message || "Failed to generate try-on. Check console for details.";
+      alert(errorMessage);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <>
       {pageLoading ? (
@@ -81,6 +104,48 @@ export const Home = () => {
         <div className="products-container">
           <div className="title">
             This is an example extension home page user interface.
+          </div>
+
+          <div className="section">
+            <div className="heading">
+              <span>Virtual Try-On</span>
+            </div>
+            <div className="description">
+              Enter an image URL of a clothing item to generate a virtual try-on model.
+            </div>
+            <div style={{ marginTop: '10px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <input 
+                type="text" 
+                placeholder="Enter Image URL" 
+                value={tryOnImageUrl} 
+                onChange={(e) => setTryOnImageUrl(e.target.value)}
+                style={{ padding: '8px', width: '300px', border: '1px solid #ccc', borderRadius: '4px' }}
+              />
+              <button 
+                onClick={handleTryOn} 
+                disabled={generating || !tryOnImageUrl}
+                style={{ 
+                  padding: '8px 16px', 
+                  backgroundColor: generating ? '#ccc' : '#2874f0', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '4px', 
+                  cursor: generating ? 'not-allowed' : 'pointer' 
+                }}
+              >
+                {generating ? "Generating..." : "Generate Try-On"}
+              </button>
+            </div>
+            {tryOnResult && (
+              <div style={{ marginTop: '20px' }}>
+                <h4>Result:</h4>
+                <div style={{ marginBottom: '10px', wordBreak: 'break-all' }}>
+                  <strong>Output URL: </strong>
+                  <a href={tryOnResult} target="_blank" rel="noopener noreferrer">{tryOnResult}</a>
+                </div>
+                <img src={tryOnResult} alt="Try-On Result" style={{ maxWidth: '100%', maxHeight: '500px', borderRadius: '8px' }} />
+              </div>
+            )}
           </div>
 
           <div className="section">

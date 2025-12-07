@@ -8,6 +8,25 @@ const { readFileSync } = require('fs');
 const { setupFdk } = require("@gofynd/fdk-extension-javascript/express");
 const { SQLiteStorage } = require("@gofynd/fdk-extension-javascript/express/storage");
 const sqliteInstance = new sqlite3.Database('session_storage.db');
+const { generateTryOn } = require("./pixelbin");
+const mongoose = require('mongoose');
+
+// Connect to MongoDB
+if (process.env.DB_URL) {
+    mongoose.connect(process.env.DB_URL)
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('Error connecting to MongoDB:', err));
+} else {
+    console.warn("DB_URL not found in environment variables");
+}
+
+const comparisonSchema = new mongoose.Schema({
+  crawledData: Array,
+  createdAt: Date
+}, { collection: 'fynd' });
+
+const ComparisonData = mongoose.model('ComparisonData', comparisonSchema);
+
 const productRouter = express.Router();
 
 
@@ -77,6 +96,33 @@ app.post('/api/webhook-events', async function(req, res) {
     }
 })
 
+// Route to handle virtual try-on
+app.post('/api/try-on', async function(req, res) {
+    try {
+        const { imageUrl } = req.body;
+        if (!imageUrl) {
+            return res.status(400).json({ success: false, message: "Image URL is required" });
+        }
+        console.log(`Received try-on request for image: ${imageUrl}`);
+        const output = await generateTryOn(imageUrl);
+        return res.status(200).json({ success: true, output });
+    } catch(err) {
+        console.error("Error processing try-on request:", err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// Route to get comparison data
+app.get('/api/comparison-data', async function(req, res) {
+    try {
+        const data = await ComparisonData.findOne().sort({ createdAt: -1 });
+        return res.status(200).json({ success: true, data });
+    } catch(err) {
+        console.error("Error fetching comparison data:", err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 productRouter.get('/', async function view(req, res, next) {
     try {
         const {
@@ -99,6 +145,99 @@ productRouter.get('/application/:application_id', async function view(req, res, 
         const data = await platformClient.application(application_id).catalog.getAppProducts()
         return res.json(data);
     } catch (err) {
+        next(err);
+    }
+});
+
+// Aggregate comparison data
+productRouter.get('/compare', async function view(req, res, next) {
+    try {
+        const {
+            platformClient
+        } = req;
+
+        // 1. Fetch Latest Crawled Data (Primary Source)
+        const crawledDoc = await ComparisonData.findOne().sort({ createdAt: -1 });
+        const crawledItems = crawledDoc ? crawledDoc.crawledData : [];
+        console.log(`Fetched ${crawledItems.length} crawled items from MongoDB.`);
+
+        // 2. Fetch Company Products (Enrichment Source - Optional)
+        let appProducts = [];
+        try {
+            const appProductsResponse = await platformClient.catalog.getProducts();
+            appProducts = appProductsResponse.items || [];
+            console.log(`Fetched ${appProducts.length} products from Fynd.`);
+        } catch (e) {
+            console.warn("Failed to fetch Fynd products:", e.message);
+        }
+
+        // 3. Aggregate Data (Driving off Crawled Data)
+        const aggregatedData = crawledItems.map(crawledItem => {
+            // Find matching Fynd product for extra details (like official image)
+            const fyndMatch = appProducts.find(p => 
+                (p.slug && crawledItem.slug && p.slug === crawledItem.slug) || 
+                (p.name && crawledItem.name && p.name.toLowerCase().trim() === crawledItem.name.toLowerCase().trim())
+            );
+
+            // Construct Fynd Details
+            // Use matched product if available, otherwise fallback to crawled data basic info
+            const fynd_details = fyndMatch || {
+                name: crawledItem.name,
+                slug: crawledItem.slug,
+                // Fallback image from first available marketplace item
+                media: [] 
+            };
+
+            // If no official image, try to grab one from marketplace data for display
+            let displayImage = null;
+            if (fyndMatch && fyndMatch.media && fyndMatch.media.length > 0) {
+                 displayImage = fyndMatch.media[0].url;
+            } else {
+                 // Iterate marketplaces to find a valid image
+                 const markets = crawledItem.marketplaces || {};
+                 for (const mKey of Object.keys(markets)) {
+                     if (markets[mKey]?.items?.[0]?.image_url) {
+                         displayImage = markets[mKey].items[0].image_url;
+                         break;
+                     }
+                 }
+            }
+            // Attach custom property for frontend to use easily
+            fynd_details.display_image = displayImage;
+
+
+            let competitorData = crawledItem.marketplaces || {};
+            let bestPrice = Infinity;
+            let bestPlatform = null;
+
+            // Calculate best price
+            Object.entries(competitorData).forEach(([platform, data]) => {
+                if (data && data.items && data.items.length > 0) {
+                    const price = data.items[0].price.value;
+                    if (price < bestPrice) {
+                        bestPrice = price;
+                        bestPlatform = platform;
+                    }
+                }
+            });
+
+            if (bestPrice === Infinity) {
+                bestPrice = null;
+                bestPlatform = null;
+            }
+
+            return {
+                fynd_details: fynd_details,
+                competitor_details: competitorData,
+                best_price: bestPrice,
+                best_platform: bestPlatform,
+                has_competitor_data: true
+            };
+        });
+
+        return res.json({ success: true, items: aggregatedData });
+    } catch (err) {
+        console.error("Aggregation Error:", err);
         next(err);
     }
 });

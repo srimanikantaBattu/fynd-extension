@@ -1,6 +1,7 @@
  import { defineConfig } from "vite";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
+import tailwindcss from '@tailwindcss/vite'
 import react from "@vitejs/plugin-react";
 
 const proxyOptions = {
@@ -35,7 +36,7 @@ if (host === "localhost") {
 
 export default defineConfig({
   root: dirname(fileURLToPath(import.meta.url)),
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   resolve: {
     preserveSymlinks: true,
   },

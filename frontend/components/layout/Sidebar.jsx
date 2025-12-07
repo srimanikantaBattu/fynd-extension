@@ -1,0 +1,63 @@
+
+import React from 'react';
+import { Home, BarChart3, Users, Settings, LogOut, Package, ShoppingCart, Camera, Layers } from 'lucide-react';
+import { cn } from '../../lib/utils';
+import { Button } from '../ui/Button';
+import { useNavigate, useLocation } from 'react-router-dom';
+
+const sidebarItems = [
+  { icon: Home, label: 'Compare Products', href: '/dashboard' },
+  { icon: Camera, label: 'Virtual Try-On', href: '/virtual-try-on' },
+  { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics' },
+  { icon: ShoppingCart, label: 'Orders', href: '/dashboard/orders' },
+  { icon: Package, label: 'Products', href: '/dashboard/products' },
+  { icon: Users, label: 'Customers', href: '/dashboard/customers' },
+  { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
+];
+
+export function Sidebar({ className }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activePath = location.pathname;
+
+  return (
+    <div className={cn("pb-12 min-h-screen w-64 bg-slate-50/50 border-r border-slate-200/60 backdrop-blur-xl flex flex-col", className)}>
+      <div className="space-y-6 py-6 px-4">
+        <div className="flex items-center gap-3 px-2">
+           <div className="h-9 w-9 rounded-xl from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-200">
+              <Layers className="text-white h-5 w-5" />
+           </div>
+           <div className="flex flex-col">
+               <h2 className="text-lg font-bold tracking-tight text-slate-900 leading-none">
+                 Fynd Admin
+               </h2>
+               <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-1">Enterprise</span>
+           </div>
+        </div>
+        
+        <div className="space-y-1">
+          {sidebarItems.map((item) => {
+             const isActive = activePath === item.href;
+             return (
+              <Button
+                key={item.href}
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start text-sm font-medium h-10 px-3 transition-all duration-200 rounded-lg group relative overflow-hidden",
+                  isActive
+                    ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-100" 
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/60"
+                )}
+                onClick={() => navigate(item.href)}
+              >
+                {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-indigo-600 rounded-r-full" />}
+                <item.icon className={cn("mr-3 h-4 w-4 transition-colors", isActive ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600")} />
+                {item.label}
+              </Button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
