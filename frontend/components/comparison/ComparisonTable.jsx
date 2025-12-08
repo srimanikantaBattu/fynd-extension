@@ -33,6 +33,22 @@ const PlatformBadge = ({ platform }) => {
     );
 };
 
+const getSearchUrl = (platform, productName) => {
+    const query = encodeURIComponent(productName);
+    switch (platform.toLowerCase()) {
+        case 'amazon':
+            return `https://www.amazon.com/s?k=${query}`;
+        case 'flipkart':
+            return `https://www.flipkart.com/search?q=${query}`;
+        case 'meesho':
+            return `https://www.meesho.com/search?q=${query}`;
+        case 'myntra':
+            return `https://www.myntra.com/search?text=${query}`;
+        default:
+            return '#';
+    }
+};
+
 export function ComparisonTable({ data, loading }) {
   if (loading) {
       // Skeleton Loading State
@@ -263,10 +279,12 @@ export function ComparisonTable({ data, loading }) {
                                  </td>
                                  {platforms.map(p => {
                                      const item = competitor_details[p]?.items?.[0];
+                                     const searchUrl = getSearchUrl(p, fynd_details.name);
+                                     
                                      return (
                                          <td key={p} className="px-6 py-4">
                                              {item ? (
-                                                 <a href={item.product_url} target="_blank" rel="noopener noreferrer" 
+                                                 <a href={searchUrl} target="_blank" rel="noopener noreferrer" 
                                                     className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-blue-600 transition-colors">
                                                      View on {p} <ExternalLink className="h-3 w-3" />
                                                  </a>

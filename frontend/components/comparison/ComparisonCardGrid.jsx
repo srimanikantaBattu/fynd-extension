@@ -14,10 +14,33 @@ const formatCurrency = (amount) => {
     }).format(amount);
 };
 
+const getSearchUrl = (platform, productName) => {
+    const query = encodeURIComponent(productName);
+    switch (platform.toLowerCase()) {
+        case 'amazon':
+            return `https://www.amazon.com/s?k=${query}`;
+        case 'flipkart':
+            return `https://www.flipkart.com/search?q=${query}`;
+        case 'meesho':
+            return `https://www.meesho.com/search?q=${query}`;
+        case 'myntra':
+            return `https://www.myntra.com/search?text=${query}`;
+        default:
+            return '#';
+    }
+};
+
 // Single Marketplace Card Component
-const MarketplaceCard = ({ platform, data, isBestPrice, bestPriceDiff }) => {
+const MarketplaceCard = ({ platform, data, isBestPrice, bestPriceDiff, productName }) => {
     const item = data?.items?.[0];
 
+    // Note: User requested to show search links even if item exists or maybe specifically for it.
+    // The previous logic hid the card if !item. 
+    // If we want to support "Search for it" even if not found, we should remove the early return.
+    // BUT the user said "change in the View Offer". The View Offer button is inside the card.
+    // The card is only rendered if `item` exists (lines 21-27 handle !item case).
+    // So we will stick to modifying the "View Offer" link when the card is visible.
+    
     if (!item) return (
         <div className="flex flex-col items-center justify-center p-6 bg-slate-50/40 rounded-xl border border-dashed border-slate-200 h-full min-h-[180px]">
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">{platform}</span>
@@ -25,6 +48,8 @@ const MarketplaceCard = ({ platform, data, isBestPrice, bestPriceDiff }) => {
             <span className="text-sm font-medium text-slate-400">Not Listed</span>
         </div>
     );
+
+    const searchUrl = getSearchUrl(platform, productName);
 
     return (
         <div className={cn(
@@ -78,7 +103,7 @@ const MarketplaceCard = ({ platform, data, isBestPrice, bestPriceDiff }) => {
                 </div>
             </div>
 
-            <a href={item.product_url} target="_blank" rel="noopener noreferrer" className="mt-auto block">
+            <a href={searchUrl} target="_blank" rel="noopener noreferrer" className="mt-auto block">
                 <Button size="sm" variant={isBestPrice ? "default" : "outline"} 
                     className={cn(
                         "w-full gap-2 text-xs font-semibold h-10 shadow-sm transition-all",
@@ -178,6 +203,7 @@ export function ComparisonCardGrid({ data, loading }) {
                         data={competitor_details[platform]} 
                         isBestPrice={best_platform === platform}
                         bestPriceDiff={savings}
+                        productName={fynd_details.name}
                      />
                  ))}
              </div>

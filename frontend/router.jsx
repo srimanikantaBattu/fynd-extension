@@ -3,6 +3,7 @@ import App from "./App";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import VirtualTryOnPage from "./pages/VirtualTryOnPage";
+import PostPage from "./pages/PostPage";
 
 const router = createBrowserRouter([
   {
@@ -20,6 +21,18 @@ const router = createBrowserRouter([
   {
     path: "/dashboard",
     element: <Dashboard />,
+  },
+  {
+    path: "/company/:company_id/post",
+    element: <PostPage />,
+  },
+  {
+    path: "/company/:company_id/application/:application_id/post",
+    element: <PostPage />,
+  },
+  {
+    path: "/dashboard/post",
+    element: <PostPage />,
   },
   {
     path: "/virtual-try-on",
