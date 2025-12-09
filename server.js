@@ -229,6 +229,9 @@ app.post('/api/ai-analyze-price', async function(req, res) {
     }
 });
 
+// Route for RAG Chat
+
+
 productRouter.get('/', async function view(req, res, next) {
     try {
         const {
@@ -345,6 +348,93 @@ productRouter.get('/compare', async function view(req, res, next) {
     } catch (err) {
         console.error("Aggregation Error:", err);
         next(err);
+    }
+});
+
+// RAG Chat Endpoint (Authenticated)
+productRouter.post('/chat-rag', async function(req, res, next) {
+    try {
+        const { query } = req.body;
+        // Check if platformClient exists
+        const platformClient = req.platformClient;
+
+        if (!query) {
+            return res.status(400).json({ success: false, message: "Query is required" });
+        }
+
+        // 1. Fetch Context from MongoDB (Competitor Data)
+        const crawledDoc = await ComparisonData.findOne().sort({ createdAt: -1 });
+        const crawledItems = crawledDoc ? crawledDoc.crawledData : [];
+
+        // 2. Fetch Company Products (My Price Data)
+        let appProducts = [];
+        if (platformClient) {
+            try {
+                const appProductsResponse = await platformClient.catalog.getProducts();
+                appProducts = appProductsResponse.items || [];
+            } catch (e) {
+                console.warn("Failed to fetch Fynd products for RAG:", e.message);
+            }
+        } else {
+             console.warn("req.platformClient is missing. Skipping Fynd product fetch.");
+        }
+
+        // 3. Merge Data & Build Context
+        // FILTER: Only include Amazon and Flipkart
+        const contextStr = crawledItems.map(item => {
+            // Find "My Price"
+            const fyndMatch = appProducts.find(p => 
+                (p.slug && item.slug && p.slug === item.slug) || 
+                (p.name && item.name && p.name.toLowerCase().trim() === item.name.toLowerCase().trim())
+            );
+            const myPrice = fyndMatch?.price?.effective?.min || 'N/A';
+
+            const allowedMarkets = ['amazon', 'flipkart'];
+            const marketData = Object.keys(item.marketplaces || {})
+                .filter(m => allowedMarkets.some(allowed => m.toLowerCase().includes(allowed)))
+                .map(m => `${m}: ${item.marketplaces[m].items?.[0]?.price?.value || 'N/A'}`)
+                .join(', ');
+
+            if (!marketData && myPrice === 'N/A') return null; 
+
+            return `Product: ${item.name} (Slug: ${item.slug})
+                    My Price (Fynd): ${myPrice}
+                    Marketplaces: ${marketData}`;
+        }).filter(Boolean).join('\n---\n');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const prompt = `
+        You are a specialised Pricing Assistant for an e-commerce dashboard.
+        Your goal is to assist the user by answering questions based ONLY on the provided scraped product data and the user's own product data ("My Price").
+
+        CONTEXT (Scraped Data - Amazon & Flipkart + My Price):
+        ${contextStr}
+        ${!platformClient ? "\nNOTE: User product data (My Price) is currently unavailable due to technical connection issues. Only scraped competitor data is shown." : ""}
+
+        USER QUERY: "${query}"
+
+        INSTRUCTIONS:
+        1. Answer the user's query using logical comparisons and analysis of the provided Context.
+        2. STRICTLY focus comparisons on Amazon, Flipkart, and "My Price".
+        3. ALWAYS compare "My Price" with competitor prices if asked for advice or comparison.
+        4. If "My Price" is 'N/A', mention that the product was not found in the user's catalog.
+        5. If the user asks about something unrelated to the provided product data, politely refuse.
+        6. Be concise, professional, and helpful.
+        7. Format your response in plain text.
+
+        ANSWER:
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        return res.status(200).json({ success: true, answer: text });
+
+    } catch(err) {
+        console.error("Error in RAG Chat:", err);
+        return res.status(500).json({ success: false, message: err.message });
     }
 });
 

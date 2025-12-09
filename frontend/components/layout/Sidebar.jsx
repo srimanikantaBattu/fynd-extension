@@ -9,7 +9,7 @@ const sidebarItems = [
   { icon: Home, label: 'Compare Products', href: '/dashboard' },
   { icon: Camera, label: 'Virtual Try-On', href: '/virtual-try-on' },
   { icon: BarChart3, label: 'Post', href: '/dashboard/post' },
-  { icon: ShoppingCart, label: 'Orders', href: '/dashboard/orders' },
+  { icon: ShoppingCart, label: 'Set Price', href: '/dashboard/set-price' },
   { icon: Package, label: 'Products', href: '/dashboard/products' },
   { icon: Users, label: 'Customers', href: '/dashboard/customers' },
   { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
