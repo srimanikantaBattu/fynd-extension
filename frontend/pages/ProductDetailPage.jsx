@@ -75,6 +75,22 @@ export default function ProductDetailPage() {
       setCompetitorError(null);
 
       try {
+          // First, trigger crawl by adding row to TriggerTableForCrawling
+          try {
+              const triggerResponse = await axios.post(urlJoin(EXAMPLE_MAIN_URL, '/api/trigger-crawl'), {
+                  slug: product.slug
+              });
+              
+              if (triggerResponse.data.success) {
+                  console.log("Successfully triggered crawl for product:", product.slug);
+              }
+          } catch (triggerErr) {
+              console.error("Error triggering crawl:", triggerErr);
+              // Don't fail the whole operation if trigger fails, just log it
+              // The user might still want to see existing competitor data
+          }
+
+          // Then fetch existing comparison data
           const { data } = await axios.get(urlJoin(EXAMPLE_MAIN_URL, '/api/comparison-data'));
           const crawledItems = data.data?.crawledData || [];
           
