@@ -4,6 +4,7 @@ import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import VirtualTryOnPage from "./pages/VirtualTryOnPage";
 import PostPage from "./pages/PostPage";
+import ProductDetailPage from "./pages/ProductDetailPage";
 
 const router = createBrowserRouter([
   {
@@ -27,12 +28,24 @@ const router = createBrowserRouter([
     element: <PostPage />,
   },
   {
+    path: "/company/:company_id/post/:slug",
+    element: <ProductDetailPage />,
+  },
+  {
     path: "/company/:company_id/application/:application_id/post",
     element: <PostPage />,
   },
   {
+    path: "/company/:company_id/application/:application_id/post/:slug",
+    element: <ProductDetailPage />,
+  },
+  {
     path: "/dashboard/post",
     element: <PostPage />,
+  },
+  {
+    path: "/dashboard/post/:slug",
+    element: <ProductDetailPage />,
   },
   {
     path: "/virtual-try-on",

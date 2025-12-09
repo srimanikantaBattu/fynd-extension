@@ -17,6 +17,7 @@
     "@boltic/sdk": "^0.0.7",
     "@gofynd/fdk-client-javascript": "^3.4.2",
     "@gofynd/fdk-extension-javascript": "^1.1.4",
+    "@google/generative-ai": "^0.24.1",
     "@pixelbin/admin": "^4.2.0",
     "axios": "^1.7.2",
     "body-parser": "^1.20.2",

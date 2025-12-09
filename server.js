@@ -1,4 +1,5 @@
 const express = require('express');
+require('dotenv').config();
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const path = require("path");
@@ -10,6 +11,12 @@ const { SQLiteStorage } = require("@gofynd/fdk-extension-javascript/express/stor
 const sqliteInstance = new sqlite3.Database('session_storage.db');
 const { generateTryOn } = require("./pixelbin");
 const mongoose = require('mongoose');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+const { createClient } = require("@boltic/sdk");
+
+// Initialize Gemini
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Connect to MongoDB
 if (process.env.DB_URL) {
@@ -119,6 +126,105 @@ app.get('/api/comparison-data', async function(req, res) {
         return res.status(200).json({ success: true, data });
     } catch(err) {
         console.error("Error fetching comparison data:", err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// Route for Boltic Post
+app.post('/api/boltic-post', async function(req, res) {
+    try {
+        const { product_name, image_url, price, slug, content } = req.body;
+        
+        // Basic validation
+        if (!product_name || !price || !slug) {
+            return res.status(400).json({ success: false, message: "Missing required fields" });
+        }
+
+        if (!process.env.BOLTIC_API_KEY) {
+             console.error("BOLTIC_API_KEY missing in environment variables");
+             return res.status(500).json({ success: false, message: "Server configuration error: Missing Boltic API Key" });
+        }
+
+        const boltic = createClient(process.env.BOLTIC_API_KEY);
+
+        console.log(`Posting to Boltic Table 'Instagram table' for product: ${product_name}`);
+
+        const { data, error } = await boltic.records.insert("Instagram table", {
+            content: content || "Check out this amazing product!",
+            product_name: product_name,
+            image_url: image_url || "",
+            price: String(price), // Ensuring string if required, or keep as is if number. User implied "Have you changed price according to AI", so likely numeric or string. 
+            // In docs, price can be currency/number. Let's pass as is or string? 
+            // The user listed fields: content, product_name, image_url, price, slug.
+            // Boltic might need exact types. I will assume flexible or string for safety unless number is obvious.
+            // If price text "2499" passed, assume number. 
+            // Safest is to pass what we have.
+            slug: slug
+        });
+
+        if (error) {
+            console.error("Boltic Insert Error:", error);
+            return res.status(500).json({ success: false, message: "Failed to insert into Boltic table", error });
+        }
+
+        return res.status(200).json({ success: true, data });
+
+    } catch(err) {
+        console.error("Error in Boltic post:", err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// Route for AI Price Analysis
+app.post('/api/ai-analyze-price', async function(req, res) {
+    try {
+        const { productName, myPrice, competitorData } = req.body;
+        
+        if (!productName || !competitorData) {
+            return res.status(400).json({ success: false, message: "Missing required data" });
+        }
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const prompt = `
+        You are an expert e-commerce pricing strategist. 
+        Product: "${productName}"
+        My Current Price: ${myPrice ? myPrice : 'Not Set'}
+        
+        Competitor Data:
+        ${JSON.stringify(competitorData, null, 2)}
+
+        Task:
+        Analyze the competitor prices (specifically Amazon and Flipkart if available) and recommend a competitive price for "My Price".
+        The goal is to be the most attractive option for customers (lowest or best value) while maintaining profit if possible (don't go absurdly low, just beat the best competitor by a small but significant margin, e.g., 2-5% lower).
+        
+        Output strictly in this JSON format:
+        {
+            "recommended_price": <number>,
+            "reasoning": "<short concise explanation, max 2 sentences>",
+            "potential_benefit": "<short impact statement>"
+        }
+        Do not output markdown code blocks, just the raw JSON string.
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        
+        let jsonResponse;
+        try {
+            // Clean up if model adds markdown blocks
+            const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            jsonResponse = JSON.parse(cleanedText);
+        } catch (e) {
+            console.error("Failed to parse Gemini response:", text);
+            return res.status(500).json({ success: false, message: "AI response parsing failed" });
+        }
+
+        return res.status(200).json({ success: true, data: jsonResponse });
+
+    } catch(err) {
+        console.error("Error in AI analysis:", err);
         return res.status(500).json({ success: false, message: err.message });
     }
 });

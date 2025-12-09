@@ -47,15 +47,15 @@ export function Sidebar({ className }) {
   return (
     <div className={cn("pb-12 min-h-screen w-64 bg-slate-50/50 border-r border-slate-200/60 backdrop-blur-xl flex flex-col", className)}>
       <div className="space-y-6 py-6 px-4">
-        <div className="flex items-center gap-3 px-2">
-           <div className="h-9 w-9 rounded-xl from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-200">
-              <Layers className="text-white h-5 w-5" />
+        <div className="flex items-center gap-3 px-2 pb-4 border-b border-slate-100/60 mx-2">
+           <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+               <span className="text-white font-black text-xl tracking-tighter">F</span>
            </div>
            <div className="flex flex-col">
                <h2 className="text-lg font-bold tracking-tight text-slate-900 leading-none">
-                 Fynd Admin
+                 Fynd
                </h2>
-               <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-1">Enterprise</span>
+               <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-widest mt-0.5">Admin</span>
            </div>
         </div>
         
