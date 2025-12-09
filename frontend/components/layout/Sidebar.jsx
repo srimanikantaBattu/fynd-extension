@@ -6,8 +6,8 @@ import { Button } from '../ui/Button';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 
 const sidebarItems = [
-  { icon: Home, label: 'Compare Products', href: '/dashboard' },
-  { icon: Camera, label: 'Virtual Try-On', href: '/virtual-try-on' },
+  { icon: Home, label: 'Compare', href: '/dashboard' },
+  { icon: Camera, label: 'Generate Model', href: '/virtual-try-on' },
   { icon: BarChart3, label: 'Post', href: '/dashboard/post' },
   { icon: ShoppingCart, label: 'Set Price', href: '/dashboard/set-price' },
   { icon: Package, label: 'Products', href: '/dashboard/products' },
@@ -75,7 +75,7 @@ export function Sidebar({ className }) {
                 key={item.href}
                 variant="ghost"
                 className={cn(
-                  "w-full justify-start text-sm font-medium h-10 px-3 transition-all duration-200 rounded-lg group relative overflow-hidden",
+                  "w-full justify-start text-lg font-medium h-10 px-3 p-7 transition-all duration-200 rounded-lg group relative overflow-hidden",
                   isActive
                     ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-100" 
                     : "text-slate-500 hover:text-slate-900 hover:bg-white/60"
@@ -83,7 +83,7 @@ export function Sidebar({ className }) {
                 onClick={() => navigate(targetUrl)}
               >
                 {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-indigo-600 rounded-r-full" />}
-                <item.icon className={cn("mr-3 h-4 w-4 transition-colors", isActive ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600")} />
+                <item.icon className={cn("mr-3 h-5 w-5 transition-colors", isActive ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600")} />
                 {item.label}
               </Button>
             )
