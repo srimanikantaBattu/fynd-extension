@@ -214,36 +214,142 @@ app.post('/api/trigger-crawl', async function(req, res) {
     }
 });
 
+// Route to fetch offers from OfferTable
+app.post('/api/offers', async function(req, res) {
+    try {
+        if (!process.env.BOLTIC_API_KEY) {
+            console.error("BOLTIC_API_KEY missing in environment variables");
+            return res.status(500).json({ success: false, message: "Server configuration error: Missing Boltic API Key" });
+        }
+
+        const boltic = createClient(process.env.BOLTIC_API_KEY);
+
+        console.log("Fetching latest offers from OfferTable...");
+
+        // Fetch records from OfferTable
+        // Note: Boltic SDK uses findAll for querying
+        let records = [];
+        try {
+             const result = await boltic.records.findAll("OfferTable", {
+                sort: [{ field: "created_at", direction: "desc" }],
+                limit: 2
+            });
+            records = result.data || [];
+        } catch (sdkError) {
+             console.error("Boltic SDK Fetch Error:", sdkError);
+             return res.status(500).json({ success: false, message: "Failed to fetch offers from Boltic", error: sdkError.message });
+        }
+
+        if (records.length === 0) {
+            return res.status(200).json({ success: true, offers: [] });
+        }
+
+        // Parse the output JSON for each record
+        const parsedOffers = records.map(record => {
+            try {
+                // Clean the output string - remove markdown code blocks if present
+                let outputStr = record.output || "{}";
+                
+                // Remove markdown code blocks like ```json ... ```
+                outputStr = outputStr.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+                
+                // Parse the JSON
+                const parsedOutput = JSON.parse(outputStr);
+                
+                return {
+                    marketplace: record.marketplace,
+                    data: parsedOutput,
+                    created_at: record.created_at,
+                    id: record.id
+                };
+            } catch (parseErr) {
+                console.error(`Failed to parse output for record ${record.id}:`, parseErr);
+                console.error("Raw output:", record.output);
+                return {
+                    marketplace: record.marketplace,
+                    data: null,
+                    error: "Failed to parse JSON",
+                    created_at: record.created_at,
+                    id: record.id
+                };
+            }
+        });
+
+        console.log(`Successfully fetched and parsed ${parsedOffers.length} offers`);
+        return res.status(200).json({ success: true, offers: parsedOffers });
+
+    } catch(err) {
+        console.error("Error fetching offers:", err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 // Route for AI Price Analysis
 app.post('/api/ai-analyze-price', async function(req, res) {
     try {
-        const { productName, myPrice, competitorData } = req.body;
+        const { productName, myPrice } = req.body;
         
-        if (!productName || !competitorData) {
-            return res.status(400).json({ success: false, message: "Missing required data" });
+        if (!process.env.BOLTIC_API_KEY) {
+            return res.status(500).json({ success: false, message: "Server configuration error: Missing Boltic API Key" });
         }
+
+        const boltic = createClient(process.env.BOLTIC_API_KEY);
+
+        // 1. Fetch Latest 2 Competitor Records from OfferTable
+        let competitorRecords = [];
+        try {
+             const result = await boltic.records.findAll("OfferTable", {
+                sort: [{ field: "created_at", direction: "desc" }],
+                limit: 2
+            });
+            competitorRecords = result.data || [];
+        } catch (sdkError) {
+             console.error("Boltic SDK Fetch Error inside Analyze:", sdkError);
+             return res.status(500).json({ success: false, message: "Failed to fetch competitor data for analysis" });
+        }
+
+        if (competitorRecords.length === 0) {
+            return res.status(404).json({ success: false, message: "No competitor data found to analyze." });
+        }
+
+        // 2. Parse Data
+        const parsedCompetitors = competitorRecords.map(r => {
+            try {
+                let outputStr = r.output || "{}";
+                outputStr = outputStr.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+                return { platform: r.marketplace, data: JSON.parse(outputStr) };
+            } catch (e) { return null; }
+        }).filter(Boolean);
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const prompt = `
-        You are an expert e-commerce pricing strategist. 
-        Product: "${productName}"
-        My Current Price: ${myPrice ? myPrice : 'Not Set'}
+        You are an expert E-commerce Strategy Consultant.
         
-        Competitor Data:
-        ${JSON.stringify(competitorData, null, 2)}
+        TARGET PRODUCT: "${productName}"
+        CURRENT PRICE: ${myPrice ? myPrice : 'Not Set'}
 
-        Task:
-        Analyze the competitor prices (specifically Amazon and Flipkart if available) and recommend a competitive price for "My Price".
-        The goal is to be the most attractive option for customers (lowest or best value) while maintaining profit if possible (don't go absurdly low, just beat the best competitor by a small but significant margin, e.g., 2-5% lower).
-        
-        Output strictly in this JSON format:
+        COMPETITOR DATA (Latest Scraped):
+        ${JSON.stringify(parsedCompetitors, null, 2)}
+
+        ANALYSIS TASK:
+        1. **Compare** the competitor offers against my product.
+        2. **Identify Offers**: Which specific offers (Bank discounts, coupons, EMI) are competitors running that I should also run? "What offers can be kept?"
+        3. **Pricing Strategy**: How should I change my price to GRAB USER ATTENTION immediately? (e.g., Psychological pricing, massive discount display, undercutting key rival).
+
+        OUTPUT FORMAT (Strict JSON):
         {
-            "recommended_price": <number>,
-            "reasoning": "<short concise explanation, max 2 sentences>",
-            "potential_benefit": "<short impact statement>"
+            "comparison_summary": "Brief 1-sentence comparison.",
+            "pricing_strategy": {
+                "recommended_price": <number>,
+                "action": "<Short title, e.g., Undercut Amazon>",
+                "attention_tactic": "<How to grab attention, e.g. Show 60% OFF>"
+            },
+            "suggested_offers_to_adopt": [
+                "<Specific Offer 1>",
+                "<Specific Offer 2>"
+            ]
         }
-        Do not output markdown code blocks, just the raw JSON string.
         `;
 
         const result = await model.generateContent(prompt);
@@ -252,7 +358,6 @@ app.post('/api/ai-analyze-price', async function(req, res) {
         
         let jsonResponse;
         try {
-            // Clean up if model adds markdown blocks
             const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
             jsonResponse = JSON.parse(cleanedText);
         } catch (e) {
