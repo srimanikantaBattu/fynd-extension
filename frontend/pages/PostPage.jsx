@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import urlJoin from "url-join";
-import { Loader2, Package, Tag, Clock } from 'lucide-react';
+import { Loader2, Package, Tag, Clock, MoreHorizontal, Edit3, BarChart2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 
@@ -64,11 +64,14 @@ export default function PostPage() {
         <main className="flex-1 p-6 lg:p-8 max-w-[1920px] mx-auto w-full">
             <div className="flex flex-col gap-8">
                 <div className="flex flex-col gap-1">
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-                        Post
-                    </h1>
-                    <p className="text-slate-500">
-                        Manage your product catalog.
+                    <div className="flex items-center gap-3 mb-2">
+                        <h1 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-900 via-slate-800 to-indigo-900 pb-1">
+                            Smart Price Analysis
+                        </h1>
+                        <span className="px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Beta</span>
+                    </div>
+                    <p className="text-slate-500 text-lg max-w-2xl font-medium leading-relaxed">
+                        Compare market rates, optimize your catalog pricing, and publish directly to channels.
                     </p>
                 </div>
 
@@ -115,7 +118,10 @@ function ProductCard({ product }) {
 
     const imageUrl = productProfileImage(product.media);
 
-    const handleCardClick = () => {
+    const handleCardClick = (e) => {
+         // Prevent navigation if clicking actions
+         if (e.target.closest('button')) return;
+
          const baseUrl = application_id && company_id 
              ? `/company/${company_id}/application/${application_id}/post`
              : company_id 
@@ -128,15 +134,16 @@ function ProductCard({ product }) {
     return (
         <div 
             onClick={handleCardClick}
-            className="group relative bg-white/40 backdrop-blur-sm rounded-[32px] border border-white/60 shadow-[0_4px_30px_rgba(0,0,0,0.02)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.06)] hover:-translate-y-2 transition-all duration-500 ease-out flex flex-col h-full cursor-pointer overflow-hidden ring-1 ring-white/50"
+            className="group relative bg-white/40 backdrop-blur-md rounded-[32px] border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] hover:-translate-y-2 transition-all duration-500 ease-out flex flex-col h-full cursor-pointer overflow-hidden ring-1 ring-white/50"
         >
             {/* Soft inner glow gradient */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-white/20 to-indigo-50/30 opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white/40 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-white/20 to-indigo-50/20 opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/30 via-white/40 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-            {/* Status Pill - Ultra Modern Glow */}
-            <div className="absolute top-4 right-4 z-30">
-                <span className={cn(
+            {/* Top Action Bar */}
+            <div className="absolute top-4 left-4 right-4 z-30 flex justify-between items-start">
+               {/* Status Pill */}
+               <span className={cn(
                 "relative inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-[0.2em] border shadow-sm backdrop-blur-xl transition-all duration-300",
                 product.is_active 
                     ? "bg-emerald-400/10 text-emerald-600 border-emerald-200/40 shadow-[0_0_15px_rgba(52,211,153,0.3)]" 
@@ -145,56 +152,63 @@ function ProductCard({ product }) {
                     <span className={cn("w-1.5 h-1.5 rounded-full shadow-inner", product.is_active ? "bg-emerald-400 animate-pulse" : "bg-slate-400")} />
                     {product.is_active ? 'ACTIVE' : 'HIDDEN'}
                 </span>
+
+                {/* 3-Dot Menu */}
+                <button className="p-2 -mr-2 -mt-2 rounded-full hover:bg-white/50 text-slate-400 hover:text-slate-700 transition-colors">
+                    <MoreHorizontal className="h-5 w-5" />
+                </button>
             </div>
 
             {/* Image Container - Floating Glass */}
-            <div className="relative w-full pt-5 px-5 pb-0 flex items-center justify-center z-20">
-                <div className="relative w-full aspect-[3/2] bg-white/60 rounded-[24px] flex items-center justify-center p-6 border border-white/80 shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] group-hover:shadow-[0_15px_30px_rgba(0,0,0,0.05)] transition-all duration-500 transform group-hover:scale-[1.02]">
+            <div className="relative w-full pt-12 px-5 pb-0 flex items-center justify-center z-20">
+                <div className="relative w-full aspect-[4/3] bg-gradient-to-b from-white/40 to-white/10 rounded-[28px] flex items-center justify-center p-6 border border-white/60 shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] group-hover:shadow-[0_15px_40px_rgba(0,0,0,0.08)] transition-all duration-500 transform group-hover:scale-[1.02]">
                     
                     {/* The Product Image */}
                     {imageUrl ? (
                         <div className="relative w-full h-full flex items-center justify-center">
                              {/* Floor reflection */}
-                            <div className="absolute bottom-[-10px] w-2/3 h-4 bg-black/10 blur-xl rounded-full opacity-0 group-hover:opacity-60 transition-opacity duration-500" />
+                            <div className="absolute bottom-[-15px] w-2/3 h-4 bg-black/10 blur-xl rounded-full opacity-0 group-hover:opacity-50 transition-opacity duration-500" />
                             <img 
                                 src={imageUrl} 
                                 alt={product.name} 
-                                className="h-full w-auto object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.05)] group-hover:drop-shadow-[0_20px_25px_rgba(0,0,0,0.1)] transition-all duration-700 ease-out will-change-transform"
+                                className="h-full w-auto object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.06)] group-hover:drop-shadow-[0_20px_30px_rgba(0,0,0,0.12)] transition-all duration-700 ease-out will-change-transform"
                                 loading="lazy"
                             />
                         </div>
                     ) : (
                         <div className="flex flex-col items-center justify-center text-slate-300">
-                            <Package className="h-8 w-8 mb-2 opacity-20" />
-                            <span className="text-[8px] font-black uppercase tracking-widest opacity-20">No Image</span>
+                            <Package className="h-10 w-10 mb-2 opacity-20" />
+                            <span className="text-[9px] font-black uppercase tracking-widest opacity-20">No Image</span>
                         </div>
                     )}
                 </div>
             </div>
             
             {/* Content Section */}
-            <div className="relative px-6 pb-6 pt-5 flex flex-col flex-1 z-20">
-                {/* Brand Capsule */}
-                <div className="mb-3 flex items-center">
-                    {product.brand && (
-                         <span className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.15em] px-2 py-1 rounded-lg bg-indigo-50/50 border border-indigo-100/30">
-                            {product.brand.name}
-                        </span>
-                    )}
+            <div className="relative px-6 pb-6 pt-6 flex flex-col flex-1 z-20">
+                <div className="flex justify-between items-start mb-2">
+                    {/* Brand/Category Capsule */}
+                    <div className="flex items-center">
+                        {product.brand && (
+                            <span className="text-[9px] font-black text-indigo-500/80 uppercase tracking-[0.15em] px-2.5 py-1 rounded-full bg-indigo-50/50 border border-indigo-100/30">
+                                {product.brand.name}
+                            </span>
+                        )}
+                    </div>
                 </div>
-                
+
                 {/* Title */}
-                <h3 className="text-[15px] font-bold text-slate-800 leading-snug mb-1 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-indigo-600 group-hover:to-violet-600 transition-all duration-300 line-clamp-1">
+                <h3 className="text-[17px] font-bold text-slate-800 leading-snug mb-1 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-indigo-600 group-hover:to-violet-600 transition-all duration-300 line-clamp-1">
                     {product.name}
                 </h3>
                 
                  {/* SKU/Slug */}
-                 <div className="text-[10px] text-slate-400 font-medium font-mono mb-5 truncate opacity-50 tracking-wide">
+                 <div className="text-[11px] text-slate-400 font-medium font-mono mb-6 truncate opacity-60 tracking-wide">
                      {product.slug}
                  </div>
 
                 {/* Glass Divider */}
-                <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200/60 to-transparent mb-4" />
+                <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200/60 to-transparent mb-5" />
 
                 {/* Price & Action */}
                 <div className="mt-auto flex items-end justify-between">
@@ -203,32 +217,31 @@ function ProductCard({ product }) {
                          <div className="flex items-baseline gap-2">
                             {product.price ? (
                                 <>
-                                 <span className="text-xl font-black text-slate-800 tracking-tight">
+                                 <span className="text-2xl font-black text-slate-800 tracking-tight">
                                      <span className="text-sm align-top text-slate-400 font-bold mr-0.5">{product.price.currency_symbol}</span>
                                      {product.price.effective?.min || '0'}
                                  </span>
                                  {product.price.marked && (
-                                     <span className="text-[10px] font-semibold text-slate-300 line-through decoration-slate-300/50">
+                                     <span className="text-[11px] font-semibold text-slate-300 line-through decoration-slate-300/50">
                                         {product.price.marked.min}
                                      </span>
                                  )}
                                 </>
                             ) : (
-                                <span className="text-sm font-bold text-slate-300">N/A</span>
+                                <span className="text-lg font-bold text-slate-300">N/A</span>
                             )}
                          </div>
                      </div>
                      
-                     {/* SKU Badge */}
-                     {product.item_code && (
-                         <div className="flex flex-col items-end">
-                             <div className="px-2 py-1 rounded-lg bg-slate-50/50 border border-slate-100/50 group-hover:bg-white group-hover:shadow-sm group-hover:border-indigo-100/50 transition-all duration-300">
-                                <span className="text-[10px] font-mono font-bold text-slate-400 group-hover:text-indigo-500 transition-colors">
-                                    {product.item_code}
-                                </span>
-                             </div>
-                        </div>
-                     )}
+                     {/* Action Buttons (Edit/Analytics) */}
+                     <div className="flex items-center gap-2">
+                        <button className="p-2 rounded-xl bg-slate-50 hover:bg-white border border-slate-100/50 hover:border-indigo-100 text-slate-400 hover:text-indigo-600 transition-all shadow-sm hover:shadow-md">
+                            <Edit3 className="h-4 w-4" />
+                        </button>
+                        <button className="p-2 rounded-xl bg-slate-50 hover:bg-white border border-slate-100/50 hover:border-indigo-100 text-slate-400 hover:text-indigo-600 transition-all shadow-sm hover:shadow-md">
+                             <BarChart2 className="h-4 w-4" />
+                        </button>
+                     </div>
                 </div>
             </div>
         </div>

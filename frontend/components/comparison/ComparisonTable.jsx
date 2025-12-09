@@ -53,12 +53,42 @@ export function ComparisonTable({ data, loading }) {
   if (loading) {
       // Skeleton Loading State
       return (
-        <div className="space-y-6">
+        <div className="space-y-8">
              {[1, 2].map(i => (
-                 <div key={i} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm p-6 space-y-4">
-                     <div className="h-8 bg-slate-100 rounded w-1/3 animate-pulse"></div>
-                     <div className="space-y-2">
-                         {[1,2,3,4].map(j => <div key={j} className="h-12 bg-slate-50 rounded animate-pulse"></div>)}
+                 <div key={i} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                     {/* Header Skeleton */}
+                     <div className="p-6 border-b border-slate-100 flex items-center gap-4 bg-white relative overflow-hidden">
+                        <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-slate-50/50 to-transparent"></div>
+                         <div className="h-14 w-14 bg-slate-100 rounded-lg animate-pulse"></div>
+                         <div className="space-y-2 flex-1">
+                             <div className="h-6 w-1/3 bg-slate-100 rounded animate-pulse"></div>
+                             <div className="h-4 w-1/4 bg-slate-50 rounded animate-pulse"></div>
+                         </div>
+                     </div>
+
+                     {/* Table Rows Skeleton */}
+                     <div className="divide-y divide-slate-50">
+                        {/* Simulation of table rows */}
+                        {[1,2,3,4].map(row => (
+                            <div key={row} className="flex border-b border-slate-50 last:border-0 relative overflow-hidden">
+                                <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-slate-50/30 to-transparent"></div>
+                                {/* Label Column */}
+                                <div className="w-[240px] p-6 border-r border-slate-100 bg-slate-50/30">
+                                    <div className="h-4 w-24 bg-slate-200 rounded animate-pulse"></div>
+                                </div>
+                                {/* My Store Column */}
+                                <div className="flex-1 p-6 border-r border-indigo-50 bg-indigo-50/5">
+                                    <div className="h-8 w-16 bg-indigo-50 rounded animate-pulse mb-2"></div>
+                                    <div className="h-3 w-10 bg-slate-100 rounded animate-pulse"></div>
+                                </div>
+                                {/* Competitor Columns */}
+                                {[1,2,3,4].map(col => (
+                                    <div key={col} className="flex-1 p-6 border-r border-slate-50">
+                                        <div className="h-6 w-20 bg-slate-100 rounded animate-pulse mb-2"></div>
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
                      </div>
                  </div>
              ))}
