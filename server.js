@@ -355,82 +355,132 @@ productRouter.get('/compare', async function view(req, res, next) {
 productRouter.post('/chat-rag', async function(req, res, next) {
     try {
         const { query } = req.body;
-        // Check if platformClient exists
         const platformClient = req.platformClient;
 
         if (!query) {
             return res.status(400).json({ success: false, message: "Query is required" });
         }
 
-        // 1. Fetch Context from MongoDB (Competitor Data)
+        // Step 1: Fetch Scraped Competitor Data from MongoDB
         const crawledDoc = await ComparisonData.findOne().sort({ createdAt: -1 });
         const crawledItems = crawledDoc ? crawledDoc.crawledData : [];
 
-        // 2. Fetch Company Products (My Price Data)
-        let appProducts = [];
-        if (platformClient) {
-            try {
-                const appProductsResponse = await platformClient.catalog.getProducts();
-                appProducts = appProductsResponse.items || [];
-            } catch (e) {
-                console.warn("Failed to fetch Fynd products for RAG:", e.message);
-            }
-        } else {
-             console.warn("req.platformClient is missing. Skipping Fynd product fetch.");
+        if (crawledItems.length === 0) {
+            return res.status(200).json({ 
+                success: true, 
+                answer: "I don't have any competitor data available at the moment. Please ensure the scraping process has run successfully." 
+            });
         }
 
-        // 3. Merge Data & Build Context
-        // FILTER: Only include Amazon and Flipkart
-        const contextStr = crawledItems.map(item => {
-            // Find "My Price"
-            const fyndMatch = appProducts.find(p => 
+        // Step 2: Fetch Your Store's Products
+        let myProducts = [];
+        if (platformClient) {
+            try {
+                const productsResponse = await platformClient.catalog.getProducts();
+                myProducts = productsResponse.items || [];
+                console.log(`Fetched ${myProducts.length} products from your store`);
+            } catch (e) {
+                console.warn("Failed to fetch your products:", e.message);
+            }
+        }
+
+        // Step 3: Build Rich Context for RAG
+        const productContext = crawledItems.map((item, index) => {
+            // Find matching product in your store
+            const myProduct = myProducts.find(p => 
                 (p.slug && item.slug && p.slug === item.slug) || 
                 (p.name && item.name && p.name.toLowerCase().trim() === item.name.toLowerCase().trim())
             );
-            const myPrice = fyndMatch?.price?.effective?.min || 'N/A';
 
-            const allowedMarkets = ['amazon', 'flipkart'];
-            const marketData = Object.keys(item.marketplaces || {})
-                .filter(m => allowedMarkets.some(allowed => m.toLowerCase().includes(allowed)))
-                .map(m => `${m}: ${item.marketplaces[m].items?.[0]?.price?.value || 'N/A'}`)
-                .join(', ');
+            // Extract your price
+            const myPrice = myProduct?.price?.effective?.min;
+            const myPriceStr = myPrice ? `₹${myPrice}` : 'Not in your store';
 
-            if (!marketData && myPrice === 'N/A') return null; 
+            // Extract competitor prices (Amazon, Flipkart, Myntra, etc.)
+            const competitorPrices = [];
+            const marketplaces = item.marketplaces || {};
+            
+            for (const [marketplace, data] of Object.entries(marketplaces)) {
+                if (data?.items && data.items.length > 0) {
+                    const price = data.items[0]?.price?.value;
+                    const rating = data.items[0]?.rating;
+                    const delivery = data.items[0]?.delivery_time;
+                    
+                    if (price) {
+                        competitorPrices.push({
+                            platform: marketplace.charAt(0).toUpperCase() + marketplace.slice(1),
+                            price: `₹${price}`,
+                            rating: rating || 'N/A',
+                            delivery: delivery || 'N/A'
+                        });
+                    }
+                }
+            }
 
-            return `Product: ${item.name} (Slug: ${item.slug})
-                    My Price (Fynd): ${myPrice}
-                    Marketplaces: ${marketData}`;
-        }).filter(Boolean).join('\n---\n');
+            // Calculate price insights
+            const allPrices = competitorPrices.map(c => parseFloat(c.price.replace('₹', '').replace(',', '')));
+            if (myPrice) allPrices.push(myPrice);
+            
+            const lowestPrice = allPrices.length > 0 ? Math.min(...allPrices) : null;
+            const highestPrice = allPrices.length > 0 ? Math.max(...allPrices) : null;
+            const avgPrice = allPrices.length > 0 ? (allPrices.reduce((a, b) => a + b, 0) / allPrices.length).toFixed(2) : null;
 
+            return `
+### Product ${index + 1}: ${item.name}
+**Slug**: ${item.slug}
+**Your Store Price**: ${myPriceStr}
+
+**Competitor Prices**:
+${competitorPrices.map(c => `- ${c.platform}: ${c.price} (Rating: ${c.rating}, Delivery: ${c.delivery})`).join('\n') || '- No competitor data available'}
+
+**Market Analysis**:
+- Lowest Market Price: ₹${lowestPrice}
+- Highest Market Price: ₹${highestPrice}
+- Average Market Price: ₹${avgPrice}
+- Your Position: ${myPrice ? (myPrice === lowestPrice ? 'BEST PRICE ✓' : myPrice === highestPrice ? 'HIGHEST PRICE' : 'COMPETITIVE') : 'Not Listed'}
+            `.trim();
+        }).join('\n\n' + '='.repeat(80) + '\n\n');
+
+        // Step 4: Create RAG Prompt with Rich Context
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        const prompt = `
-        You are a specialised Pricing Assistant for an e-commerce dashboard.
-        Your goal is to assist the user by answering questions based ONLY on the provided scraped product data and the user's own product data ("My Price").
+        const ragPrompt = `You are an expert E-commerce Pricing Analyst and Assistant. You have access to comprehensive product comparison data between the user's store and major marketplaces (Amazon, Flipkart, Myntra, etc.).
 
-        CONTEXT (Scraped Data - Amazon & Flipkart + My Price):
-        ${contextStr}
-        ${!platformClient ? "\nNOTE: User product data (My Price) is currently unavailable due to technical connection issues. Only scraped competitor data is shown." : ""}
+📊 COMPLETE PRODUCT COMPARISON DATA:
+${productContext}
 
-        USER QUERY: "${query}"
+${myProducts.length === 0 ? '\n⚠️ NOTE: Unable to fetch your store products. Analysis will focus only on competitor data.\n' : ''}
 
-        INSTRUCTIONS:
-        1. Answer the user's query using logical comparisons and analysis of the provided Context.
-        2. STRICTLY focus comparisons on Amazon, Flipkart, and "My Price".
-        3. ALWAYS compare "My Price" with competitor prices if asked for advice or comparison.
-        4. If "My Price" is 'N/A', mention that the product was not found in the user's catalog.
-        5. If the user asks about something unrelated to the provided product data, politely refuse.
-        6. Be concise, professional, and helpful.
-        7. Format your response in plain text.
+👤 USER QUESTION: "${query}"
 
-        ANSWER:
-        `;
+🎯 YOUR ROLE AS PRICING ASSISTANT:
+You must analyze the data above and provide intelligent, actionable insights based on the user's question.
 
-        const result = await model.generateContent(prompt);
+GUIDELINES:
+1. **Answer Based on Data**: Use ONLY the product comparison data provided above
+2. **Be Specific**: Reference actual product names, prices, and platforms from the data
+3. **Compare Intelligently**: 
+   - Highlight price differences between your store and competitors
+   - Identify best deals and opportunities
+   - Suggest optimal pricing strategies
+4. **Provide Context**: Explain WHY certain prices are better (considering ratings, delivery, etc.)
+5. **Be Concise**: Give clear, actionable answers without unnecessary fluff
+6. **Handle All Questions**: 
+   - Product comparisons ("compare product X")
+   - Pricing advice ("should I lower prices?")
+   - Market insights ("which platform has best prices?")
+   - Specific queries ("what's the price of X on Amazon?")
+   - General help ("help me optimize pricing")
+
+7. **Format Well**: Use bullet points, bold text, and clear structure for readability
+
+🤖 YOUR INTELLIGENT RESPONSE:`;
+
+        const result = await model.generateContent(ragPrompt);
         const response = await result.response;
-        const text = response.text();
+        const answer = response.text();
 
-        return res.status(200).json({ success: true, answer: text });
+        return res.status(200).json({ success: true, answer });
 
     } catch(err) {
         console.error("Error in RAG Chat:", err);

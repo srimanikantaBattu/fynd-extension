@@ -39,22 +39,6 @@ export default function SetPricePage() {
     setInput('');
     setLoading(true);
 
-    // SIMULATED COMPARISON TRIGGER
-    // If user asks for comparison, show the UI component instead of hitting backend (for visual demo)
-    if (input.toLowerCase().includes('compare') || input.toLowerCase().includes('competitor')) {
-        setTimeout(() => {
-            const aiMessage = {
-                role: 'ai',
-                type: 'comparison', // Special type
-                text: "I've analyzed the top competitors for this product. Here is the breakdown:",
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            };
-            setMessages(prev => [...prev, aiMessage]);
-            setLoading(false);
-        }, 1500);
-        return;
-    }
-
     try {
       const config = company_id ? { headers: { "x-company-id": company_id } } : {};
       const response = await axios.post(urlJoin(EXAMPLE_MAIN_URL, '/api/products/chat-rag'), {
@@ -71,15 +55,12 @@ export default function SetPricePage() {
       console.error("Error sending message:", error);
       const errorMessage = {
         role: 'ai',
-        text: `**Error**: ${error.response?.data?.message || "Something went wrong."}`,
+        text: `**Error**: ${error.response?.data?.message || "Something went wrong. Please try again."}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
-      // Logic handled locally for comparison, otherwise finally block runs here
-      if (!input.toLowerCase().includes('compare')) {
-         setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
@@ -219,19 +200,10 @@ export default function SetPricePage() {
                                              </div>
                                              
                                              <div className="flex-1 space-y-4">
-                                                 {/* Render Standard Text */}
-                                                 {msg.text && (
-                                                     <div className="prose prose-slate max-w-none px-1">
-                                                        <ReactMarkdown>{msg.text}</ReactMarkdown>
-                                                     </div>
-                                                 )}
-
-                                                 {/* Render Special Components */}
-                                                 {msg.type === 'comparison' && (
-                                                     <div className="mt-4">
-                                                         <PriceComparisonCard query={messages[index-1]?.text} />
-                                                     </div>
-                                                 )}
+                                                 {/* Render AI Response with Markdown Support */}
+                                                 <div className="prose prose-slate max-w-none px-1">
+                                                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                                                 </div>
                                              </div>
                                          </div>
                                      )}
