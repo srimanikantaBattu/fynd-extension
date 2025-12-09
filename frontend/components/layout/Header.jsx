@@ -41,7 +41,7 @@ export function Header({ className }) {
                     <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold ring-2 ring-white shadow-sm">
                         JS
                     </div>
-                    <span className="hidden sm:inline-block text-sm font-medium">Jane Doe</span>
+                    <span className="hidden sm:inline-block text-sm font-medium">Sri Manikanta Battu</span>
                 </Button>
             </div>
           </nav>
