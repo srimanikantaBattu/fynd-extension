@@ -232,9 +232,35 @@ app.post('/api/offers', async function(req, res) {
         try {
              const result = await boltic.records.findAll("OfferTable", {
                 sort: [{ field: "created_at", direction: "desc" }],
-                limit: 2
+                limit: 50 // Fetch more records to ensure we get latest from both marketplaces
             });
             records = result.data || [];
+            
+            // In-memory sort to ensure correctness if SDK sort behaves unexpectedly
+            records.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            
+            // Get the latest record for each unique marketplace (Amazon & Flipkart)
+            console.log(`Total records fetched: ${records.length}`);
+            const marketplaceMap = new Map();
+            for (const record of records) {
+                const marketplace = record.marketplace ? record.marketplace.toLowerCase() : 'unknown';
+                console.log(`Processing record: ${record.id}, marketplace: ${marketplace}, created_at: ${record.created_at}`);
+                // Only add if we haven't seen this marketplace yet (so we get the latest one)
+                if (!marketplaceMap.has(marketplace)) {
+                    marketplaceMap.set(marketplace, record);
+                    console.log(`Added ${marketplace} to map`);
+                }
+                // Stop once we have 2 unique marketplaces
+                if (marketplaceMap.size >= 2) {
+                    console.log('Found 2 unique marketplaces, stopping iteration');
+                    break;
+                }
+            }
+            
+            // Convert map back to array
+            records = Array.from(marketplaceMap.values());
+            console.log(`Final records count: ${records.length}`);
+            console.log('Marketplaces:', records.map(r => r.marketplace));
         } catch (sdkError) {
              console.error("Boltic SDK Fetch Error:", sdkError);
              return res.status(500).json({ success: false, message: "Failed to fetch offers from Boltic", error: sdkError.message });
@@ -300,9 +326,15 @@ app.post('/api/ai-analyze-price', async function(req, res) {
         try {
              const result = await boltic.records.findAll("OfferTable", {
                 sort: [{ field: "created_at", direction: "desc" }],
-                limit: 2
+                limit: 10
             });
             competitorRecords = result.data || [];
+
+            // In-memory sort to ensure correctness if SDK sort behaves unexpectedly
+            competitorRecords.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            
+            // Take top 2 strictly
+            competitorRecords = competitorRecords.slice(0, 2);
         } catch (sdkError) {
              console.error("Boltic SDK Fetch Error inside Analyze:", sdkError);
              return res.status(500).json({ success: false, message: "Failed to fetch competitor data for analysis" });

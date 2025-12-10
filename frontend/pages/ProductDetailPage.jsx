@@ -37,8 +37,13 @@ export default function ProductDetailPage() {
   const [competitorError, setCompetitorError] = useState(null);
 
   useEffect(() => {
+    // Reset competitor data when switching products
+    setCompetitorData(null);
+    setCompetitorError(null);
+    setCrawlTriggered(false);
+    
     // If we didn't get product from state (direct link), fetch it
-    if (!product) {
+    if (!product || product.slug !== slug) {
         fetchProductDetails();
     }
   }, [slug]);
@@ -99,24 +104,22 @@ export default function ProductDetailPage() {
   const handleFetchOffers = async () => {
       setFetchingOffers(true);
       setCompetitorError(null);
-      setCompetitorData(null);
+      setCompetitorData(null); // Explicit clear
 
       try {
-          const { data } = await axios.post(urlJoin(EXAMPLE_MAIN_URL, '/api/offers'));
+          // Add timestamp to prevent caching
+          const { data } = await axios.post(urlJoin(EXAMPLE_MAIN_URL, `/api/offers?t=${Date.now()}`));
+          
+          console.log('Received offers data:', data);
+          console.log('Number of offers:', data.offers?.length);
           
           if (data.success && data.offers && data.offers.length > 0) {
-              const offersObject = {};
-              data.offers.forEach(offer => {
-                  if (offer.data && offer.marketplace) {
-                      offersObject[offer.marketplace.toLowerCase()] = offer.data;
-                  }
-              });
-              
-              if (Object.keys(offersObject).length > 0) {
-                  setCompetitorData(offersObject);
-              } else {
-                  setCompetitorError("No valid offer data found yet. Data might still be processing.");
-              }
+              // Store as array to handle multiple offers from same marketplace
+              console.log('Setting competitor data with', data.offers.length, 'offers');
+              console.log('Marketplaces:', data.offers.map(o => o.marketplace));
+              setCompetitorData(data.offers);
+          } else if (data.success && data.offers && data.offers.length === 0) {
+              setCompetitorError("No valid offer data found yet. Data might still be processing.");
           } else {
               setCompetitorError("No offer data available. Please try retrieving again in a moment.");
           }
@@ -305,18 +308,16 @@ export default function ProductDetailPage() {
 
                         {/* Action Buttons */}
                         <div className="pt-4 flex flex-wrap items-center gap-4">
-                             {/* Check Competitors / Retrieve Data Button */}
-                             <Button 
+                            {/* Check Competitors Button */}
+                            <Button 
                                 size="lg" 
                                 className={cn(
                                     "relative overflow-hidden group h-14 px-8 rounded-2xl transition-all duration-300 shadow-[0_4px_14px_0_rgba(79,70,229,0.3)] hover:shadow-[0_6px_20px_rgba(79,70,229,0.23)] hover:-translate-y-0.5",
-                                    (checkingCompetitors || fetchingOffers)
+                                    checkingCompetitors
                                         ? "bg-slate-100 text-slate-400 shadow-none cursor-not-allowed" 
-                                        : crawlTriggered 
-                                            ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
-                                            : "bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white"
+                                        : "bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white"
                                 )}
-                                onClick={crawlTriggered ? handleFetchOffers : handleTriggerCrawl}
+                                onClick={handleTriggerCrawl}
                                 disabled={checkingCompetitors || fetchingOffers}
                              >
                                  <div className="absolute inset-0 bg-white/20 group-hover:translate-x-full transition-transform duration-700 ease-out skew-x-12 -ml-4" />
@@ -325,20 +326,35 @@ export default function ProductDetailPage() {
                                         <Loader2 className="h-5 w-5 animate-spin mr-2" /> 
                                         <span className="font-bold tracking-wide">Triggering Crawl...</span>
                                      </>
-                                 ) : fetchingOffers ? (
-                                     <>
-                                          <Loader2 className="h-5 w-5 animate-spin mr-2" /> 
-                                          <span className="font-bold tracking-wide">Retrieving Data...</span>
-                                     </>
-                                 ) : crawlTriggered ? (
-                                     <>
-                                         <TrendingDown className="h-5 w-5 mr-3" />
-                                         <span className="font-bold tracking-wide text-base">Retrieve Data</span>
-                                     </>
                                  ) : (
                                      <>
                                         <Globe className="h-5 w-5 mr-3" /> 
                                         <span className="font-bold tracking-wide text-base">Check Competitors</span>
+                                     </>
+                                 )}
+                             </Button>
+
+                             {/* Retrieve Data Button */}
+                             <Button 
+                                size="lg" 
+                                className={cn(
+                                    "relative overflow-hidden group h-14 px-8 rounded-2xl transition-all duration-300 border-2 border-emerald-500/20 hover:border-emerald-500/50 hover:bg-emerald-50",
+                                    fetchingOffers
+                                        ? "bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed"
+                                        : "text-emerald-700 bg-white"
+                                )}
+                                onClick={handleFetchOffers}
+                                disabled={checkingCompetitors || fetchingOffers}
+                             >
+                                 {fetchingOffers ? (
+                                     <>
+                                          <Loader2 className="h-5 w-5 animate-spin mr-2 text-emerald-600" /> 
+                                          <span className="font-bold tracking-wide text-emerald-600">Retrieving...</span>
+                                     </>
+                                 ) : (
+                                     <>
+                                         <TrendingDown className="h-5 w-5 mr-3 text-emerald-600" />
+                                         <span className="font-bold tracking-wide text-base">Retrieve Data</span>
                                      </>
                                  )}
                              </Button>
@@ -462,10 +478,21 @@ export default function ProductDetailPage() {
                     </div>
                     
                     <div className="flex flex-col gap-8">
-                        {['amazon', 'flipkart'].map(platform => {
-                            const offerData = competitorData[platform];
+
+                        {(() => {
+                            console.log('Rendering competitor data, length:', competitorData.length);
+                            console.log('Competitor data:', competitorData);
+                            return null;
+                        })()}
+
+                        {competitorData.map((offer, idx) => {
+                            const offerData = offer.data;
+                            console.log(`Rendering offer ${idx}:`, offer.marketplace, offerData ? 'has data' : 'NO DATA');
                             if (!offerData) return null;
-                            const isAmazon = platform === 'amazon';
+                            const platform = offer.marketplace ? offer.marketplace.toLowerCase() : 'unknown';
+                            const isAmazon = platform.includes('amazon');
+                            
+                            const key = `${platform}-${idx}`; // Unique key
                             
                             const searchUrl = isAmazon 
                                 ? `https://www.amazon.in/s?k=${encodeURIComponent(product.name)}`
@@ -484,7 +511,7 @@ export default function ProductDetailPage() {
                             const brandBorder = isAmazon ? "border-orange-100" : "border-blue-100";
 
                             return (
-                                <div key={platform} className="group relative bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-500 overflow-hidden flex flex-col lg:flex-row">
+                                <div key={key} className="group relative bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-500 overflow-hidden flex flex-col lg:flex-row">
                                     
                                     {/* Left Column: Identity & Price (Premium Card Look) */}
                                     <div className={cn("lg:w-80 p-8 flex flex-col relative overflow-hidden", brandLightBg)}>
