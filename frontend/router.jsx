@@ -6,6 +6,8 @@ import VirtualTryOnPage from "./pages/VirtualTryOnPage";
 import PostPage from "./pages/PostPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import SetPricePage from "./pages/SetPricePage";
+import GenerateModelPage from "./pages/GenerateModelPage";
+import BundlesPage from "./pages/BundlesPage";
 
 const router = createBrowserRouter([
   {
@@ -63,6 +65,30 @@ const router = createBrowserRouter([
   {
     path: "/company/:company_id/application/:application_id/set-price",
     element: <SetPricePage />,
+  },
+  {
+    path: "/dashboard/generate-model",
+    element: <GenerateModelPage />,
+  },
+  {
+    path: "/company/:company_id/generate-model",
+    element: <GenerateModelPage />,
+  },
+  {
+    path: "/company/:company_id/application/:application_id/generate-model",
+    element: <GenerateModelPage />,
+  },
+  {
+    path: "/dashboard/bundles",
+    element: <BundlesPage />,
+  },
+  {
+    path: "/company/:company_id/bundles",
+    element: <BundlesPage />,
+  },
+  {
+    path: "/company/:company_id/application/:application_id/bundles",
+    element: <BundlesPage />,
   },
   {
     path: "/*", // Fallback route for all unmatched paths

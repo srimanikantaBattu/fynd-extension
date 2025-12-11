@@ -7,10 +7,10 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 
 const sidebarItems = [
   { icon: Home, label: 'Compare', href: '/dashboard' },
-  { icon: Camera, label: 'Generate Model', href: '/virtual-try-on' },
+  { icon: Camera, label: 'Generate Model', href: '/dashboard/generate-model' },
   { icon: BarChart3, label: 'Post', href: '/dashboard/post' },
   { icon: ShoppingCart, label: 'Set Price', href: '/dashboard/set-price' },
-  { icon: Package, label: 'Bundle Products', href: '/dashboard/products' },
+  { icon: Layers, label: 'Bundles', href: '/dashboard/bundles' },
   { icon: Users, label: 'Customers', href: '/dashboard/customers' },
   { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
 ];
