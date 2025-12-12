@@ -8,11 +8,9 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 const sidebarItems = [
   { icon: Home, label: 'Compare', href: '/dashboard' },
   { icon: Camera, label: 'Generate Model', href: '/dashboard/generate-model' },
-  { icon: BarChart3, label: 'Post', href: '/dashboard/post' },
-  { icon: ShoppingCart, label: 'Set Price', href: '/dashboard/set-price' },
+  { icon: BarChart3, label: 'Analyze Product', href: '/dashboard/post' },
+  { icon: ShoppingCart, label: 'Helper', href: '/dashboard/set-price' },
   { icon: Layers, label: 'Bundles', href: '/dashboard/bundles' },
-  { icon: Users, label: 'Customers', href: '/dashboard/customers' },
-  { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
 ];
 
 export function Sidebar({ className }) {

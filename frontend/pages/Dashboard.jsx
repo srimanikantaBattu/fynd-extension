@@ -83,17 +83,19 @@ export default function Dashboard() {
           let bestPrice = Infinity;
           let bestPlatform = null;
 
-          // Calculate best price
+          // Calculate best price (only from valid prices)
           Object.entries(competitorData).forEach(([platform, data]) => {
               if (data && data.items && data.items.length > 0) {
-                  const price = data.items[0].price.value;
-                  if (price < bestPrice) {
+                  const price = data.items[0].price?.value;
+                  // Only consider valid numeric prices
+                  if (price && typeof price === 'number' && price > 0 && price < bestPrice) {
                       bestPrice = price;
                       bestPlatform = platform;
                   }
               }
           });
 
+          // Reset if no valid price found
           if (bestPrice === Infinity) {
               bestPrice = null;
               bestPlatform = null;

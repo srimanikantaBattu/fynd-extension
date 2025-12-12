@@ -33,14 +33,8 @@ const getSearchUrl = (platform, productName) => {
 // Single Marketplace Card Component
 const MarketplaceCard = ({ platform, data, isBestPrice, bestPriceDiff, productName }) => {
     const item = data?.items?.[0];
+    const hasValidPrice = item?.price?.value && typeof item.price.value === 'number' && item.price.value > 0;
 
-    // Note: User requested to show search links even if item exists or maybe specifically for it.
-    // The previous logic hid the card if !item. 
-    // If we want to support "Search for it" even if not found, we should remove the early return.
-    // BUT the user said "change in the View Offer". The View Offer button is inside the card.
-    // The card is only rendered if `item` exists (lines 21-27 handle !item case).
-    // So we will stick to modifying the "View Offer" link when the card is visible.
-    
     if (!item) return (
         <div className="flex flex-col items-center justify-center p-6 bg-slate-50/40 rounded-xl border border-dashed border-slate-200 h-full min-h-[180px]">
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">{platform}</span>
@@ -50,15 +44,18 @@ const MarketplaceCard = ({ platform, data, isBestPrice, bestPriceDiff, productNa
     );
 
     const searchUrl = getSearchUrl(platform, productName);
+    
+    // Only show as best price if it actually has a valid price
+    const showAsBest = isBestPrice && hasValidPrice;
 
     return (
         <div className={cn(
             "relative flex flex-col p-6 rounded-xl border transition-all duration-300 h-full bg-white group hover:shadow-xl hover:shadow-slate-200/50",
-            isBestPrice 
+            showAsBest 
                 ? "border-emerald-200 ring-1 ring-emerald-100 shadow-emerald-100/50 z-10" 
                 : "border-slate-100 hover:border-slate-300"
         )}>
-            {isBestPrice && (
+            {showAsBest && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full shadow-md flex items-center gap-1">
                     <TrendingDown className="h-3 w-3" /> Best Deal
                 </div>
@@ -78,11 +75,11 @@ const MarketplaceCard = ({ platform, data, isBestPrice, bestPriceDiff, productNa
             <div className="space-y-4 mb-6">
                 <div>
                      <div className="flex items-baseline gap-2">
-                        <span className={cn("text-3xl font-extrabold tracking-tight", isBestPrice ? "text-emerald-600" : "text-slate-900")}>
-                            {formatCurrency(item.price.value)}
+                        <span className={cn("text-3xl font-extrabold tracking-tight", showAsBest ? "text-emerald-600" : "text-slate-900")}>
+                            {formatCurrency(item.price?.value)}
                         </span>
                      </div>
-                     {isBestPrice && bestPriceDiff > 0 && (
+                     {showAsBest && bestPriceDiff > 0 && (
                          <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
                              <TrendingDown className="h-3 w-3" /> Save {formatCurrency(bestPriceDiff)}
                          </p>
@@ -104,10 +101,10 @@ const MarketplaceCard = ({ platform, data, isBestPrice, bestPriceDiff, productNa
             </div>
 
             <a href={searchUrl} target="_blank" rel="noopener noreferrer" className="mt-auto block">
-                <Button size="sm" variant={isBestPrice ? "default" : "outline"} 
+                <Button size="sm" variant={showAsBest ? "default" : "outline"} 
                     className={cn(
                         "w-full gap-2 text-xs font-semibold h-10 shadow-sm transition-all",
-                        isBestPrice 
+                        showAsBest 
                             ? "bg-emerald-600 hover:bg-emerald-700 text-white border-transparent shadow-emerald-200" 
                             : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
                     )}
@@ -241,8 +238,8 @@ export function ComparisonCardGrid({ data, loading }) {
              </div>
 
              {/* Cards Grid */}
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                 {['amazon', 'flipkart', 'myntra', 'meesho'].map((platform) => (
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {['amazon', 'flipkart'].map((platform) => (
                      <MarketplaceCard 
                         key={platform} 
                         platform={platform} 

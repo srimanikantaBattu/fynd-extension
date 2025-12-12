@@ -104,7 +104,7 @@ export function ComparisonTable({ data, loading }) {
       </div>
   );
 
-  const platforms = ['amazon', 'flipkart', 'myntra', 'meesho'];
+  const platforms = ['amazon', 'flipkart'];
 
   return (
     <div className="space-y-12">
